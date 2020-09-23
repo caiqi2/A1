@@ -1,0 +1,90 @@
+---
+title: "COVID 19 Data Visualization"
+author: "Qi Cai"
+date: 2020-09-22T21:13:14-05:00
+categories: ["R"]
+tags: ["R Markdown", "plot", "regression"]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE)
+```
+
+## Abstract
+
+"COVID19 pandemic is an ongoing worldwide pandemic deeply affected people's daily living. By analysising the COVID 19 dataset from Toronto Public Health center, we conclude that elderly people suffers more risk than youngests."
+
+## Introduction
+
+Coronavirus disease 2019 (COVID) is an infectious disease and was first identified in December 2019, in Wuhan, Hubei province. The virus is spread primarily via small droplets such as coughing, talking, etc. The median incubation period for COVID-19 is around 5 days, sometimes it could last up to 14 days.So far, more than 900 thousand patients has been reported dead @covid19dashboard. 
+
+In the pandemic, different age group people has very diversity impact. Several researchers point out that "the global population aged over sixty and where health systems are weaker and covid-19 could potentially have the greatest impact" @lloyd2020bearing. To verify such content, we download the data from `Toronto Public Health` via package opendatatoronto @opendatatoronto. With our data analysis, we can tell that elder people suffers more risk than young people in infecting COVID-19 virus.
+
+## Data Description
+
+This data set contains demographic, geographic, and severity information for all confirmed and probable cases reported to and managed by `Toronto Public Health`. Each line summarizes information for an individual case. The information contains ID, Age group, Client Gender, etc.
+
+```{r}
+library(opendatatoronto)
+COVID <- search_packages("COVID-19 Cases in Toronto") %>%
+  list_package_resources()%>%
+  get_resource()
+COVID
+```
+
+## Data Visualization
+
+We construct a ggplot @ggplot2, focus on the `Age Group`, facet by `Client Gender` and `Outcome`. 
+
+Before we draw this chart, the data is manipulated as followings:
+
+* Cluster the `Age Group` into four primary groups: 0 ~ 30 is `Young`; 31 ~ 60 is `Adult`;  61 ~ 80 is `Senior` and above 80 is `Old`. 
+
+* In our data, there are five gender groups which are "female", "male", "other", "transgender" and "unknown". Compared with the major "female" and "male", the rest has very limited counts. Thus, to drop the number of panels, we decide to focus on the major genders. 
+
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+AGES <- unique(COVID$`Age Group`)
+COVID %>% 
+  dplyr::filter(`Client Gender` %in% c("FEMALE", "MALE"),
+                !is.nan(`Age Group`),
+                `Age Group` != "NaN") %>% 
+  dplyr::mutate(
+    `Age Group` = case_when(
+      `Age Group` %in% c("19 and younger", "20 to 29 Years") ~ "Young",
+      `Age Group` %in% c("30 to 39 Years", "40 to 49 Years", 
+                         "50 to 59 Years") ~ "Adult",
+      `Age Group` %in% c("60 to 69 Years", "70 to 79 Years") ~ "Senior",
+      `Age Group` %in% c("80 to 89 Years", "90 and older") ~ "Old"
+    ),
+    `Age Group` = factor(`Age Group`, levels = c("Young", "Adult", 
+                                                 "Senior", "Old"))
+  ) %>% 
+  ggplot(mapping = aes(x = `Age Group`)) + 
+  geom_bar() + 
+  facet_grid(`Client Gender`~Outcome) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+```
+
+## Discussion
+
+In this data, there are more female patients than male patients. Note that it does not mean that female are easier to encounter COVID19, rather, it only conveys that more female patients information are stored into the Toronto Public Health system. 
+
+Most patients are resolved, very few are active or fatal.
+
+To those fatal patients, most of them are senior (60 to 79) or old (>80). Compared with other age groups, elder people has more chance to pass away.
+
+## Furture
+
+Data visualization can give us a glance of this dataset. However, to investigate the relationship of `Outcome` and other variables or the impact of the age on `Outcome` mathematically, we need to build a regression model.
+
+## Reference
+
+COVID, CSSE. 19AD. “Dashboard by the Center for Systems Science and Engineering (Csse) at Johns Hopkins University (Jhu). 2020.”
+
+Gelfand, Sharla. 2020. Opendatatoronto: Access the City of Toronto Open Data Portal.
+
+Lloyd-Sherlock, Peter, Shah Ebrahim, Leon Geﬀen, and Martin McKee. 2020. “Bearing the Brunt of Covid-19: Older People in Low and Middle Income Countries.” British Medical Journal Publishing Group.
+
+Wickham, Hadley. 2016. Ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York. https://ggplot2.tidyverse.org.
